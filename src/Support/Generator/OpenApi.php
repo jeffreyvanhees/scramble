@@ -236,7 +236,9 @@ class OpenApi implements JsonSerializable, OpenApiSerializable
     }
 
     /**
-     * Each group lists the immediate children of its parent tag.
+     * Each group lists the immediate children of its parent tag. A top-level parent
+     * that operations are filed under leads its own group, so renderers like Redoc,
+     * which only show the tags of a group, keep showing those operations.
      * Standalone tags get their own group to remain visible in renderers like Redoc.
      *
      * @return list<array{name: string, tags: list<string>}>
@@ -257,11 +259,18 @@ class OpenApi implements JsonSerializable, OpenApiSerializable
 
         $groups = [];
         $tagNames = [];
+        $usedTagNames = $this->usedTagNames();
 
         foreach ($this->tags as $tag) {
             $tagNames[$tag->name] = true;
 
             if ($tag->parent === null && isset($parents[$tag->name])) {
+                $groups[$tag->name] ??= ['name' => $tag->name, 'tags' => []];
+
+                if (isset($usedTagNames[$tag->name])) {
+                    array_unshift($groups[$tag->name]['tags'], $tag->name);
+                }
+
                 continue;
             }
 
@@ -285,5 +294,25 @@ class OpenApi implements JsonSerializable, OpenApiSerializable
         }
 
         return array_values($groups);
+    }
+
+    /**
+     * The names of the tags operations are filed under.
+     *
+     * @return array<string, true>
+     */
+    private function usedTagNames(): array
+    {
+        $names = [];
+
+        foreach ($this->paths as $path) {
+            foreach ($path->operations as $operation) {
+                foreach ($operation->tags as $name) {
+                    $names[$name] = true;
+                }
+            }
+        }
+
+        return $names;
     }
 }

@@ -100,6 +100,24 @@ it('serializes tag hierarchy as groups in 3.1 and native parents in 3.2', functi
         ]);
 });
 
+it('lists a top-level parent with operations first in its own group in 3.1', function () {
+    $openApi = (new OpenApi)->setInfo(InfoObject::make('API'))
+        ->addPath((new Path('storefronts'))->addOperation(Operation::make('get')->setTags(['Storefronts'])))
+        ->addPath((new Path('storefronts/{storefront}/members'))->addOperation(Operation::make('get')->setTags(['Members'])))
+        ->addPath((new Path('reports'))->addOperation(Operation::make('get')->setTags(['Sales'])));
+    $openApi->tags = [
+        new Tag('Members', parent: 'Storefronts'),
+        new Tag('Storefronts'),
+        new Tag('Sales', parent: 'Reports'),
+        new Tag('Reports'),
+    ];
+
+    expect($openApi->serializeAs31()['x-tagGroups'])->toBe([
+        ['name' => 'Storefronts', 'tags' => ['Storefronts', 'Members']],
+        ['name' => 'Reports', 'tags' => ['Sales']],
+    ]);
+});
+
 it('omits generated tag groups when no tags have parents', function () {
     $openApi = (new OpenApi)->setInfo(InfoObject::make('API'));
     $openApi->tags = [new Tag('Products'), new Tag('Help')];
